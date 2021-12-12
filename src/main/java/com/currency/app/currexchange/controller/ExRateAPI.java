@@ -16,7 +16,7 @@ import java.util.List;
 public class ExRateAPI {
 
     @Autowired
-    ExRateService service;
+    private ExRateService service;
 
     @GetMapping("getrate/{curr}/{baseCurr}")
     public ResponseEntity<String> getExchangeRate(@PathVariable String curr, @PathVariable String baseCurr) {

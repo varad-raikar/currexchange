@@ -20,51 +20,58 @@ import java.util.*;
 @Service
 public class ServiceImpl implements ExRateService{
 
-    Map<String, CurrRateDetails> map = new HashMap<>();
+    private Map<String, CurrRateDetails> map = new HashMap<>();
     
     @PostConstruct
     public void init() throws CsvValidationException, IOException, URISyntaxException {
         List<List<String>> list = new ArrayList<>();
         String[] data;
         int rowCount = 0;
+        Reader reader = null;
+        CSVReader csvReader = null;
 
-        Reader reader = Files.newBufferedReader(Paths.get(ClassLoader.getSystemResource("eurofxref.csv").toURI()));
-        CSVReader csvReader = new CSVReader(reader);
+        try {
+            reader = Files.newBufferedReader(Paths.get(ClassLoader.getSystemResource("eurofxref.csv").toURI()));
+            csvReader = new CSVReader(reader);
 
-        while ((data = csvReader.readNext()) != null) {
-            List<String> itemList = new ArrayList<String>();
-            rowCount++;
+            while ((data = csvReader.readNext()) != null) {
+                List<String> itemList = new ArrayList<>();
+                rowCount++;
 
-            if (rowCount > 2) {
-                throw new CSVFileException("File contains more than 2 lines");
-            }
-
-            for(int index=0; index < data.length; index++ ) {
-                if (index > 0) {
-                    itemList.add(data[index].trim());
+                if (rowCount > 2) {
+                    throw new CSVFileException("File contains more than 2 lines");
                 }
+
+                for (int index = 0; index < data.length; index++) {
+                    if (index > 0) {
+                        itemList.add(data[index].trim());
+                    }
+                }
+                list.add(itemList);
             }
-            list.add(itemList);
+        }
+        finally {
+            reader.close();
+            csvReader.close();
         }
 
-        Iterator currencyIter = list.get(0).iterator();
-        Iterator rateIter = list.get(1).iterator();
+        Iterator<String> currencyIter = list.get(0).iterator();
+        Iterator<String> rateIter = list.get(1).iterator();
 
         while (currencyIter.hasNext() && rateIter.hasNext()){
-            String currency = (String) currencyIter.next();
-            String rate = (String) rateIter.next();
+            String currency = currencyIter.next();
+            String rate = rateIter.next();
             if (!currency.isEmpty() && !rate.isEmpty() && !currency.isBlank() && !rate.isBlank()) {
                 map.put(currency, new CurrRateDetails(currency, Double.parseDouble(rate)));
             }
         }
 
-        reader.close();
-        csvReader.close();     
+
     }
 
     @Override
     public ResponseEntity<String> getExchangeRate(String curr, String baseCurr) {
-        if (validCurrency(curr) && validCurrency(baseCurr) && curr != "EUR") {
+        if (validCurrency(curr) && validCurrency(baseCurr) && curr.equals("EUR")) {
             CurrRateDetails currDetails = map.get(curr);
             currDetails.setRequested(currDetails.getRequested() + 1);
 
@@ -92,11 +99,6 @@ public class ServiceImpl implements ExRateService{
 
     @Override
     public boolean validCurrency(String curr) {
-        if (map.containsKey(curr) || curr.equals("EUR")) {
-            return true;
-        }
-        else {
-            return false;
-        }
+        return map.containsKey(curr) || curr.equals("EUR");
     }
 }
